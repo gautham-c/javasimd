@@ -25,6 +25,12 @@ public class LeveledBitmaps {
         this.comma  = comma;
         this.words  = colon[0].length;
     }
+    public LeveledBitmaps() {
+        this.levels = 0;
+        this.words = 0;
+        this.colon  = new long[0][0];
+        this.comma  = new long[0][0];
+    }
 
     /** Number of levels (and also the “ending level”). */
     public int getEndingLevel() {
