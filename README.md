@@ -1,6 +1,6 @@
 # javasimd
 
-File Structure: 
+File Structure:  
 
 project-root/
 └── src/
