@@ -18,10 +18,17 @@ public class BitmapIterator {
         // object if next colon at current level exists > pos
         return bitmaps.nextColon(level, pos) >= 0;
     }
+    public boolean isArray() { 
+        return true;
+    }
 
     public boolean moveToKey(String key) {
         // scan colon positions at this level; backward parse for key string
         // (left as exercise: read JSON text between prev/next comma)
+        return true;
+    }
+
+    public boolean moveToIndex(int idx) { 
         return true;
     }
 
