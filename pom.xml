@@ -6,6 +6,7 @@
   <groupId>com.group8</groupId>
   <artifactId>javasimd</artifactId>
   <version>1.0-SNAPSHOT</version>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
@@ -14,29 +15,34 @@
 
   <build>
     <plugins>
-      <!-- enable incubator Vector API -->
+      <!-- Java 21 + incubator Vector API -->
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.10.1</version>
         <configuration>
           <release>21</release>
           <compilerArgs>
-            <arg>--add-modules</arg><arg>jdk.incubator.vector</arg>
-            <!-- if you need reflection access: -->
-            <arg>--add-opens</arg><arg>java.base/java.lang=ALL-UNNAMED</arg>
+            <arg>--add-modules</arg>
+            <arg>jdk.incubator.vector</arg>
+            <arg>--add-opens</arg>
+            <arg>java.base/java.lang=ALL-UNNAMED</arg>
+            <arg>--add-opens</arg>
+            <arg>java.base/jdk.internal.misc=ALL-UNNAMED</arg>
           </compilerArgs>
         </configuration>
       </plugin>
-      <!-- to run the demo main class with mvn exec:java -->
+      <!-- Plugin to run your demo via mvn exec:java -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.1.0</version>
         <configuration>
           <mainClass>com.group8.pison.demo.PisonDemo</mainClass>
-          <commandlineArgs/>
           <arguments>
+            <!-- again, module & opens for Unsafe/Vector -->
             <argument>--add-modules</argument><argument>jdk.incubator.vector</argument>
+            <argument>--add-opens</argument><argument>java.base/java.lang=ALL-UNNAMED</argument>
+            <argument>--add-opens</argument><argument>java.base/jdk.internal.misc=ALL-UNNAMED</argument>
           </arguments>
         </configuration>
       </plugin>
