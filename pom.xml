@@ -1,51 +1,67 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="
+           http://maven.apache.org/POM/4.0.0
+           http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
+
   <groupId>com.group8</groupId>
   <artifactId>javasimd</artifactId>
   <version>1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>javasimd</name>
+  <description>Java port of Pison – structural JSON indexing with Vector API</description>
 
   <properties>
+    <!-- Java version -->
+    <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
   </properties>
 
   <build>
     <plugins>
-      <!-- Java 21 + incubator Vector API -->
+      <!-- Compile with Java 21, enable incubator.vector & Unsafe opens -->
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.10.1</version>
         <configuration>
-          <release>21</release>
+          <release>${maven.compiler.release}</release>
           <compilerArgs>
             <arg>--add-modules</arg>
             <arg>jdk.incubator.vector</arg>
-            <arg>--add-opens</arg>
-            <arg>java.base/java.lang=ALL-UNNAMED</arg>
             <arg>--add-opens</arg>
             <arg>java.base/jdk.internal.misc=ALL-UNNAMED</arg>
           </compilerArgs>
         </configuration>
       </plugin>
-      <!-- Plugin to run your demo via mvn exec:java -->
+
+      <!-- Allows `mvn exec:java` to run your demo with the right JVM flags -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.1.0</version>
         <configuration>
+          <!-- Default main class; you can override with -Dexec.mainClass -->
           <mainClass>com.group8.pison.demo.PisonDemo</mainClass>
+          <vmArgs>
+            <vmArg>--add-modules</vmArg>
+            <vmArg>jdk.incubator.vector</vmArg>
+            <vmArg>--add-opens</vmArg>
+            <vmArg>java.base/jdk.internal.misc=ALL-UNNAMED</vmArg>
+          </vmArgs>
           <arguments>
-            <!-- again, module & opens for Unsafe/Vector -->
-            <argument>--add-modules</argument><argument>jdk.incubator.vector</argument>
-            <argument>--add-opens</argument><argument>java.base/java.lang=ALL-UNNAMED</argument>
-            <argument>--add-opens</argument><argument>java.base/jdk.internal.misc=ALL-UNNAMED</argument>
+            <!-- Default demo argument; override with -Dexec.args -->
+            <argument>dataset/twitter.json</argument>
           </arguments>
         </configuration>
       </plugin>
     </plugins>
   </build>
+
+  <dependencies>
+    <!-- none: we only use JDK classes + incubator.vector -->
+  </dependencies>
+
 </project>
