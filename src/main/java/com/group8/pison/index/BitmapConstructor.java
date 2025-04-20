@@ -53,6 +53,13 @@ public class BitmapConstructor {
         List<DynamicPartitioner.Partition> parts =
             DynamicPartitioner.partition(json, threads);
         ForkJoinPool pool = new ForkJoinPool(threads);
+        try {
+            pool.invoke(new Stage1Task(parts, 0, parts.size()));
+            // … later, Stage2Task, Stage3Task, etc.
+        } finally {
+            pool.shutdown();
+            pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        }
         pool.invoke(new Stage1Task(parts, 0, parts.size()));
         pool.shutdown();
         // Stages 2–5 would follow similarly, each as a ForkJoin task
