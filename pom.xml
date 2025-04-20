@@ -5,53 +5,59 @@
            http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
-
   <groupId>com.group8</groupId>
   <artifactId>javasimd</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <packaging>jar</packaging>
-
   <name>javasimd</name>
-  <description>Java port of Pison – structural JSON indexing with Vector API</description>
 
+  <!-- Ensure we compile and run on Java 21 -->
   <properties>
+    <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
   <build>
     <plugins>
-      <!-- Java 21 + incubator Vector API -->
+      <!-- 1) Compile plugin: set source/target to 21 and pass module flags -->
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.10.1</version>
         <configuration>
-          <release>${maven.compiler.release}</release>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
           <compilerArgs>
-            <!-- enable Vector API at compile time -->
+            <!-- enable Incubator Vector API -->
             <arg>--add-modules</arg>
             <arg>jdk.incubator.vector</arg>
-            <arg>--add-opens</arg>
-            <arg>java.base/java.lang=ALL-UNNAMED</arg>
+            <!-- allow Unsafe -->
             <arg>--add-opens</arg>
             <arg>java.base/jdk.internal.misc=ALL-UNNAMED</arg>
           </compilerArgs>
         </configuration>
       </plugin>
-      <!-- Plugin to run your demo via mvn exec:java -->
+
+      <!-- 2) Exec plugin: reuse same flags at runtime -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.1.0</version>
         <configuration>
           <mainClass>com.group8.pison.demo.PisonDemo</mainClass>
+          <vmArgs>
+            <vmArg>--add-modules</vmArg>
+            <vmArg>jdk.incubator.vector</vmArg>
+            <vmArg>--add-opens</vmArg>
+            <vmArg>java.base/jdk.internal.misc=ALL-UNNAMED</vmArg>
+          </vmArgs>
           <arguments>
-            <!-- again, module & opens for Unsafe/Vector -->
-            <argument>--add-modules</argument><argument>jdk.incubator.vector</argument>
-            <argument>--add-opens</argument><argument>java.base/java.lang=ALL-UNNAMED</argument>
-            <argument>--add-opens</argument><argument>java.base/jdk.internal.misc=ALL-UNNAMED</argument>
+            <argument>sample.json</argument>
           </arguments>
         </configuration>
       </plugin>
     </plugins>
   </build>
+
+  <dependencies>
+    <!-- no external dependencies -->
+  </dependencies>
 </project>

@@ -1,6 +1,7 @@
 com/group8/pison/inference/ContextInferencer$Status.class
 com/group8/pison/index/LeveledBitmaps.class
 com/group8/pison/partition/DynamicPartitioner.class
+com/group8/pison/index/BitmapConstructor$Stage2Task.class
 com/group8/pison/Pison.class
 com/group8/pison/inference/ContextInferencer.class
 com/group8/pison/index/BitmapConstructor.class

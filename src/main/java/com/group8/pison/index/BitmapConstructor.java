@@ -104,40 +104,50 @@ public class BitmapConstructor {
             int end = start + len;
             int i = start;
 
-            // vectorized scan (32 bytes at a time)
-            for (; i + VectorUtils.SPECIES.length() <= end; i += VectorUtils.SPECIES.length()) {
-                ByteVector vec = VectorUtils.load(json, i);
+            // process 64 bytes per iteration → one 64-bit mask per word
+            for (; i + 64 <= end; i += 64) {
+                // load first and second 32-byte lanes
+                ByteVector v1 = VectorUtils.load(json, i);
+                ByteVector v2 = VectorUtils.load(json, i + VectorUtils.SPECIES.length());
+
+                long off = ((long)(i / 64)) * Long.BYTES;
 
                 // ':' bitmap
-                long mColon = VectorUtils.mask(VectorUtils.eq(vec, (byte) ':'));
-                UnsafeMemory.putLong(colonAddr, ((long)i/8)*Long.BYTES, mColon);
+                long lowColon  = VectorUtils.mask(VectorUtils.eq(v1, (byte)':'));
+                long highColon = VectorUtils.mask(VectorUtils.eq(v2, (byte)':'));
+                UnsafeMemory.putLong(colonAddr, off, (highColon << 32) | (lowColon & 0xFFFFFFFFL));
 
                 // ',' bitmap
-                long mComma = VectorUtils.mask(VectorUtils.eq(vec, (byte) ','));
-                UnsafeMemory.putLong(commaAddr, ((long)i/8)*Long.BYTES, mComma);
+                long lowComma  = VectorUtils.mask(VectorUtils.eq(v1, (byte)','));
+                long highComma = VectorUtils.mask(VectorUtils.eq(v2, (byte)','));
+                UnsafeMemory.putLong(commaAddr, off, (highComma << 32) | (lowComma & 0xFFFFFFFFL));
 
                 // '"' bitmap
-                long mQuote = VectorUtils.mask(VectorUtils.eq(vec, (byte) '"'));
-                UnsafeMemory.putLong(quoteAddr, ((long)i/8)*Long.BYTES, mQuote);
+                long lowQuote  = VectorUtils.mask(VectorUtils.eq(v1, (byte)'"'));
+                long highQuote = VectorUtils.mask(VectorUtils.eq(v2, (byte)'"'));
+                UnsafeMemory.putLong(quoteAddr, off, (highQuote << 32) | (lowQuote & 0xFFFFFFFFL));
 
                 // '\' bitmap
-                long mSlash = VectorUtils.mask(VectorUtils.eq(vec, (byte) '\\'));
-                UnsafeMemory.putLong(slashAddr, ((long)i/8)*Long.BYTES, mSlash);
+                long lowSlash  = VectorUtils.mask(VectorUtils.eq(v1, (byte)'\\'));
+                long highSlash = VectorUtils.mask(VectorUtils.eq(v2, (byte)'\\'));
+                UnsafeMemory.putLong(slashAddr, off, (highSlash << 32) | (lowSlash & 0xFFFFFFFFL));
 
                 // '{' bitmap
-                long mL    = VectorUtils.mask(VectorUtils.eq(vec, (byte) '{'));
-                UnsafeMemory.putLong(ldelimAddr, ((long)i/8)*Long.BYTES, mL);
+                long lowL    = VectorUtils.mask(VectorUtils.eq(v1, (byte)'{'));
+                long highL   = VectorUtils.mask(VectorUtils.eq(v2, (byte)'{'));
+                UnsafeMemory.putLong(ldelimAddr, off, (highL << 32) | (lowL & 0xFFFFFFFFL));
 
                 // '}' bitmap
-                long mR    = VectorUtils.mask(VectorUtils.eq(vec, (byte) '}'));
-                UnsafeMemory.putLong(rdelimAddr, ((long)i/8)*Long.BYTES, mR);
+                long lowR    = VectorUtils.mask(VectorUtils.eq(v1, (byte)'}'));
+                long highR   = VectorUtils.mask(VectorUtils.eq(v2, (byte)'}'));
+                UnsafeMemory.putLong(rdelimAddr, off, (highR << 32) | (lowR & 0xFFFFFFFFL));
             }
 
-            // tail: byte‐by‐byte
-            for (; i < end; i++) {
-                byte b = json[i];
-                long off = ((long)i/8)*Long.BYTES;
-                int bit = i & 63;
+            // tail: handle remaining <64 bytes
+            for (int j = i; j < end; j++) {
+                byte b = json[j];
+                long off = ((long)(j / 64)) * Long.BYTES;
+                int bit = j & 63;
 
                 if (b == ':')  writeBit(colonAddr, off, bit);
                 if (b == ',')  writeBit(commaAddr, off, bit);
