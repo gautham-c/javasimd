@@ -15,53 +15,43 @@
   <description>Java port of Pison – structural JSON indexing with Vector API</description>
 
   <properties>
-    <!-- Java version -->
-    <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
   <build>
     <plugins>
-      <!-- Compile with Java 21, enable incubator.vector & Unsafe opens -->
+      <!-- Java 21 + incubator Vector API -->
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.10.1</version>
         <configuration>
           <release>${maven.compiler.release}</release>
           <compilerArgs>
+            <!-- enable Vector API at compile time -->
             <arg>--add-modules</arg>
             <arg>jdk.incubator.vector</arg>
+            <arg>--add-opens</arg>
+            <arg>java.base/java.lang=ALL-UNNAMED</arg>
             <arg>--add-opens</arg>
             <arg>java.base/jdk.internal.misc=ALL-UNNAMED</arg>
           </compilerArgs>
         </configuration>
       </plugin>
-
-      <!-- Allows `mvn exec:java` to run your demo with the right JVM flags -->
+      <!-- Plugin to run your demo via mvn exec:java -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.1.0</version>
         <configuration>
-          <!-- Default main class; you can override with -Dexec.mainClass -->
           <mainClass>com.group8.pison.demo.PisonDemo</mainClass>
-          <vmArgs>
-            <vmArg>--add-modules</vmArg>
-            <vmArg>jdk.incubator.vector</vmArg>
-            <vmArg>--add-opens</vmArg>
-            <vmArg>java.base/jdk.internal.misc=ALL-UNNAMED</vmArg>
-          </vmArgs>
           <arguments>
-            <!-- Default demo argument; override with -Dexec.args -->
-            <argument>dataset/twitter.json</argument>
+            <!-- again, module & opens for Unsafe/Vector -->
+            <argument>--add-modules</argument><argument>jdk.incubator.vector</argument>
+            <argument>--add-opens</argument><argument>java.base/java.lang=ALL-UNNAMED</argument>
+            <argument>--add-opens</argument><argument>java.base/jdk.internal.misc=ALL-UNNAMED</argument>
           </arguments>
         </configuration>
       </plugin>
     </plugins>
   </build>
-
-  <dependencies>
-    <!-- none: we only use JDK classes + incubator.vector -->
-  </dependencies>
-
 </project>
