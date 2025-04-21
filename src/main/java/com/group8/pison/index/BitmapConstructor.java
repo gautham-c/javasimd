@@ -106,14 +106,14 @@ public class BitmapConstructor {
 
                 if (b == ':' || b == ',') {
                     long mask = UnsafeMemory.getLong(b == ':' ? colonAddr : commaAddr, wordIndex * Long.BYTES);
-                    if (((mask >> bitOffset) & 1) != 0) {
-                        if (b == ':') colonLevels[level][wordIndex] |= (1L << bitOffset);
-                        else commaLevels[level][wordIndex] |= (1L << bitOffset);
-                    }
+                if (((mask >> bitOffset) & 1) != 0 && level < maxLevels) {
+                    if (b == ':') colonLevels[level][wordIndex] |= (1L << bitOffset);
+                    else commaLevels[level][wordIndex] |= (1L << bitOffset);
+                }
                 }
 
                 if (b == '{' || b == '[') {
-                    level++;
+                    if (level < maxLevels - 1) level++;
                 } else if (b == '}' || b == ']') {
                     level = Math.max(0, level - 1);
                 }

@@ -41,16 +41,25 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.1.0</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+        </executions>
         <configuration>
-          <mainClass>com.group8.pison.demo.PisonDemo</mainClass>
-          <vmArgs>
-            <vmArg>--add-modules</vmArg>
-            <vmArg>jdk.incubator.vector</vmArg>
-            <vmArg>--add-opens</vmArg>
-            <vmArg>java.base/jdk.internal.misc=ALL-UNNAMED</vmArg>
-          </vmArgs>
+          <executable>java</executable>
           <arguments>
-            <argument>sample.json</argument>
+            <argument>--add-modules</argument>
+            <argument>jdk.incubator.vector</argument>
+            <argument>--add-opens</argument>
+            <argument>java.base/jdk.internal.misc=ALL-UNNAMED</argument>
+            <argument>-Xmx8G</argument>
+            <argument>-cp</argument>
+            <classpath/>
+            <argument>com.group8.pison.demo.PisonDemo3</argument>
+            <argument>bestbuy.json</argument>
           </arguments>
         </configuration>
       </plugin>
