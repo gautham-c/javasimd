@@ -117,5 +117,7 @@ This project is for academic and research purposes.
 
 ## 👨‍💻 Authors
 
-- Gautham C. (Java port and enhancements)
+- Gautham C
+- Pankaj Chowdary
+- Nithya 
 - Based on research by Lin Jiang, Junqiao Qiu, Zhijia Zhao
