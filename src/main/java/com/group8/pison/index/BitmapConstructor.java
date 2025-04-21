@@ -63,14 +63,110 @@ public class BitmapConstructor {
             // Stage 2: remove escaped quotes
             pool.invoke(new Stage2Task(parts, 0, parts.size()));
 
-            // TODO: Stage 3, 4, 5...
+            // Stage 3: build string mask (toggle quote bits to mark strings)
+            long[] quoteBits = new long[words];
+            for (int i = 0; i < words; i++) {
+                quoteBits[i] = UnsafeMemory.getLong(quoteAddr, (long)i * Long.BYTES);
+            }
+            long[] stringMask = new long[words];
+            boolean inString = false;
+            for (int i = 0; i < words; i++) {
+                long quote = quoteBits[i];
+                long mask = 0;
+                for (int b = 0; b < 64; b++) {
+                    if ((quote & (1L << b)) != 0) {
+                        inString = !inString;
+                    }
+                    if (inString) {
+                        mask |= (1L << b);
+                    }
+                }
+                stringMask[i] = mask;
+            }
+
+            // Stage 4: remove metacharacters inside strings
+            for (int i = 0; i < words; i++) {
+                long sm = ~stringMask[i]; // inverted mask
+                UnsafeMemory.putLong(colonAddr, (long)i * Long.BYTES, UnsafeMemory.getLong(colonAddr, (long)i * Long.BYTES) & sm);
+                UnsafeMemory.putLong(commaAddr, (long)i * Long.BYTES, UnsafeMemory.getLong(commaAddr, (long)i * Long.BYTES) & sm);
+                UnsafeMemory.putLong(ldelimAddr, (long)i * Long.BYTES, UnsafeMemory.getLong(ldelimAddr, (long)i * Long.BYTES) & sm);
+                UnsafeMemory.putLong(rdelimAddr, (long)i * Long.BYTES, UnsafeMemory.getLong(rdelimAddr, (long)i * Long.BYTES) & sm);
+            }
+
+            // Stage 5: generate leveled bitmaps (flat version with single level for now)
+            int maxLevels = 16;
+            long[][] colonLevels = new long[maxLevels][words];
+            long[][] commaLevels = new long[maxLevels][words];
+
+            int level = 0;
+            for (int i = 0; i < json.length; i++) {
+                int wordIndex = i / 64;
+                int bitOffset = i % 64;
+                byte b = json[i];
+
+                if (b == ':' || b == ',') {
+                    long mask = UnsafeMemory.getLong(b == ':' ? colonAddr : commaAddr, wordIndex * Long.BYTES);
+                    if (((mask >> bitOffset) & 1) != 0) {
+                        if (b == ':') colonLevels[level][wordIndex] |= (1L << bitOffset);
+                        else commaLevels[level][wordIndex] |= (1L << bitOffset);
+                    }
+                }
+
+                if (b == '{' || b == '[') {
+                    level++;
+                } else if (b == '}' || b == ']') {
+                    level = Math.max(0, level - 1);
+                }
+            }
+
+            int actualLevels = 0;
+            for (int l = 0; l < maxLevels; l++) {
+                for (int w = 0; w < words; w++) {
+                    if (colonLevels[l][w] != 0 || commaLevels[l][w] != 0) {
+                        actualLevels = l + 1;
+                        break;
+                    }
+                }
+            }
+
+            long[][] finalColon = new long[actualLevels][];
+            long[][] finalComma = new long[actualLevels][];
+            System.arraycopy(colonLevels, 0, finalColon, 0, actualLevels);
+            System.arraycopy(commaLevels, 0, finalComma, 0, actualLevels);
+
+            System.out.println("Colon bit positions: ");
+            for (int l = 0; l < actualLevels; l++) {
+                System.out.print("Level " + l + ": ");
+                for (int w = 0; w < words; w++) {
+                    long word = finalColon[l][w];
+                    for (int b = 0; b < 64; b++) {
+                        if ((word & (1L << b)) != 0) {
+                            System.out.print((w * 64 + b) + " ");
+                        }
+                    }
+                }
+                System.out.println();
+            }
+
+            System.out.println("Comma bit positions: ");
+            for (int l = 0; l < actualLevels; l++) {
+                System.out.print("Level " + l + ": ");
+                for (int w = 0; w < words; w++) {
+                    long word = finalComma[l][w];
+                    for (int b = 0; b < 64; b++) {
+                        if ((word & (1L << b)) != 0) {
+                            System.out.print((w * 64 + b) + " ");
+                        }
+                    }
+                }
+                System.out.println();
+            }
+
+            return new LeveledBitmaps(actualLevels, finalColon, finalComma);
         } finally {
             pool.shutdown();
             pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         }
-
-        // placeholder: after all stages, produce merged LeveledBitmaps
-        return new LeveledBitmaps(/* levels, colonArrays, commaArrays */);
     }
 
     //

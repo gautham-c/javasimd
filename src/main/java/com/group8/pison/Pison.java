@@ -4,15 +4,17 @@ import com.group8.pison.index.BitmapConstructor;
 import com.group8.pison.index.LeveledBitmaps;
 import com.group8.pison.iterator.BitmapIterator;
 
-
 public class Pison {
     private final LeveledBitmaps bitmaps;
+    private final byte[] json;
 
     public Pison(byte[] json, int threads) {
         try {
+            this.json = json;
             BitmapConstructor bc = new BitmapConstructor(json, threads);
-            System.out.println("in pison.java"+bc.construct());
-            this.bitmaps = bc.construct();
+            LeveledBitmaps bm = bc.construct();        // < run only once
+            System.out.println("in pison.java " + bm);
+            this.bitmaps = bm;
             bc.cleanup();
         } catch (InterruptedException e) {
             // restore interrupt status and wrap
@@ -22,6 +24,10 @@ public class Pison {
     }
 
     public BitmapIterator iterator() {
-        return new BitmapIterator(bitmaps);
+        return new BitmapIterator(bitmaps, json);
+    }
+
+    public LeveledBitmaps getBitmaps() {
+        return this.bitmaps;
     }
 }

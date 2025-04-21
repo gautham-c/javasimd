@@ -135,6 +135,42 @@ public class LeveledBitmaps {
         return -1;
     }
 
+    public long prevColon(int level, long pos) {
+        if (level < 0 || level >= levels) return -1;
+        int wIdx = (int)(pos >>> 6);
+        int bOff = (int)(pos & 63L);
+        long[] levelBits = colon[level];
+    
+        long w = levelBits[wIdx] & ((1L << bOff) - 1);
+        if (w != 0) {
+            return ((long)wIdx << 6) + 63 - Long.numberOfLeadingZeros(w);
+        }
+        for (int i = wIdx - 1; i >= 0; i--) {
+            if (levelBits[i] != 0) {
+                return ((long)i << 6) + 63 - Long.numberOfLeadingZeros(levelBits[i]);
+            }
+        }
+        return -1;
+    }
+    
+    public long prevComma(int level, long pos) {
+        if (level < 0 || level >= levels) return -1;
+        int wIdx = (int)(pos >>> 6);
+        int bOff = (int)(pos & 63L);
+        long[] levelBits = comma[level];
+    
+        long w = levelBits[wIdx] & ((1L << bOff) - 1);
+        if (w != 0) {
+            return ((long)wIdx << 6) + 63 - Long.numberOfLeadingZeros(w);
+        }
+        for (int i = wIdx - 1; i >= 0; i--) {
+            if (levelBits[i] != 0) {
+                return ((long)i << 6) + 63 - Long.numberOfLeadingZeros(levelBits[i]);
+            }
+        }
+        return -1;
+    }
+
     /**
      * After you locate a colon at bit pos, the corresponding field’s value
      * starts at pos+1.

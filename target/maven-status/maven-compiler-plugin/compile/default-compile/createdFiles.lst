@@ -5,6 +5,7 @@ com/group8/pison/index/BitmapConstructor$Stage2Task.class
 com/group8/pison/Pison.class
 com/group8/pison/inference/ContextInferencer.class
 com/group8/pison/index/BitmapConstructor.class
+com/group8/pison/demo/PisonDemo2.class
 com/group8/pison/demo/PisonDemo.class
 com/group8/pison/util/VectorUtils.class
 com/group8/pison/inference/ContextInferencer$TokenizationException.class

@@ -6,11 +6,9 @@ import com.group8.pison.iterator.BitmapIterator;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
- * Example usage: Query $.user[0].name
+ * Example usage: Query $.user[1].name
  */
 public class PisonDemo {
     public static void main(String[] args) throws Exception {
@@ -19,7 +17,9 @@ public class PisonDemo {
         byte[] data = Files.readAllBytes(Paths.get(jsonPath));
         Pison pison = new Pison(data, Runtime.getRuntime().availableProcessors());
         BitmapIterator it = pison.iterator();
-
+        
+        System.out.println("LeveledBitmaps levels: " + pison.getBitmaps().getEndingLevel());
+        
         if (it.isObject()) {
             // root is object, stay at root
         } else if (it.isArray()) {
@@ -33,24 +33,24 @@ public class PisonDemo {
         }
         if (it.isObject() && it.moveToKey("user")) {
             System.out.println("if 1");
-            if (it.isArray() && it.moveToIndex(0)) {
+            it.down();
+            if (it.isArray() && it.moveToIndex(1)) {
                 System.out.println("if 2");
-                it.down();
-                if (it.isObject() && it.moveToKey("name")) {
-                    String name = it.getValue();
-                    System.out.println("user[0].name = " + name);
+                System.out.println("→ At user[1], pos=" + it.getPos());
+                if (it.isObject()) {
+                    System.out.println("→ Confirmed object, checking for key 'name'...");
+                    if (it.moveToKey("name")) {
+                        String name = it.getValue();
+                        System.out.println("user[1].name = " + name);
+                    } else {
+                        System.out.println("→ Key 'name' not found inside user[1]");
+                    }
+                } else {
+                    System.out.println("→ user[1] is not an object");
                 }
             }
         } else {
-            // Fallback: simple regex parsing for "user[0].name"
-            String jsonStr = new String(data, StandardCharsets.UTF_8);
-            Pattern p = Pattern.compile("\"user\"\\s*:\\s*\\[\\s*\\{[^}]*?\"name\"\\s*:\\s*\"([^\"]+)\"");
-            Matcher m = p.matcher(jsonStr);
-            if (m.find()) {
-                System.out.println("user[0].name = " + m.group(1));
-            } else {
-                System.out.println("user[0].name not found");
-            }
+            System.out.println("Key 'user[1].name' not found via index traversal.");
         }
     }
 }
