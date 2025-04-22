@@ -75,14 +75,12 @@ public class BitmapIterator {
     }
 
     public boolean moveToIndex(int idx) {
-        System.out.println("→ moveToIndex(" + idx + ") called at pos=" + pos);
         if (idx == 0) {
             return true;
         }
 
         long arrayStart = pos;
         long arrayEnd = json.length;
-        System.out.println("→ moveToIndex scanning between " + arrayStart + " and " + arrayEnd);
 
         long tryPos = arrayStart;
         int count = 0;
@@ -105,10 +103,6 @@ public class BitmapIterator {
             while (pos < json.length && json[(int) pos] != '{' && json[(int) pos] != '[') {
                 pos++;
             }
-            System.out.println("→ Final pos after skipping: " + pos + " char='" + (char) json[(int) pos] + "'");
-            int previewLen = Math.min(60, json.length - (int) pos);
-            System.out.println("→ JSON snippet at pos " + pos + ": " + new String(json, (int) pos, previewLen));
-            System.out.println("→ moveToIndex SUCCESS: idx=" + idx + ", pos=" + pos);
             return true;
         }
 
@@ -143,8 +137,6 @@ public class BitmapIterator {
         }
         char firstChar = (char) json[start];
 
-        System.out.println("→ getValue called at pos=" + start + " char='" + firstChar + "'");
-
         if (firstChar == '{' || firstChar == '[') {
             int depth = 0;
             char open = firstChar;
@@ -160,7 +152,6 @@ public class BitmapIterator {
             }
 
             int end = i + 1;
-            System.out.println("→ Bracket-matched from pos=" + start + " to end=" + end);
             return new String(json, start, end - start).trim();
         }
 
@@ -170,7 +161,6 @@ public class BitmapIterator {
             end++;
         }
 
-        System.out.println("→ Scalar value from pos=" + start + " to end=" + end);
         return new String(json, start, end - start).replace("\"", "").trim();
     }
 
