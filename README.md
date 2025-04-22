@@ -1,5 +1,5 @@
 
-# Pison - SIMD-Accelerated JSON Indexing in Java
+# SIMD-Accelerated JSON Indexing in Java
 
 **Pison** is a Java-based structural indexing engine for JSON records, inspired by the original [Pison C++ implementation](https://vldb.org/pvldb/vol14/p694-jiang.pdf). This project enables efficient querying and traversal of large or deeply nested JSON structures using SIMD and multithreaded parallelism.
 
@@ -96,7 +96,7 @@ Our implementation builds multi-level bitmap indexes using:
 - SIMD operations via `jdk.incubator.vector` module
 
 Benchmarked on:
-- **MacBook Air (Apple Silicon)**
+- **MacBook (Apple Silicon)**
 - **JSON sizes**: up to 1GB (e.g., BestBuy product catalog)
 
 ---
