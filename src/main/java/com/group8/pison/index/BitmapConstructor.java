@@ -13,13 +13,9 @@ import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Main driver: five‐stage, parallel structural index construction.
- */
 public class BitmapConstructor {
-    // Off‐heap pointers for our metacharacter bitmaps
     private final long colonAddr, commaAddr, quoteAddr, slashAddr, ldelimAddr, rdelimAddr;
-    private final int words;     // # 64‐bit words = ceil(json.length/64)
+    private final int words;
     private final byte[] json;
     private final int threads;
 
@@ -29,7 +25,6 @@ public class BitmapConstructor {
         this.words   = (json.length + 63) / 64;
         long bytes   = (long) words * Long.BYTES;
 
-        // allocate off‐heap buffers
         colonAddr  = UnsafeMemory.allocate(bytes);
         commaAddr  = UnsafeMemory.allocate(bytes);
         quoteAddr  = UnsafeMemory.allocate(bytes);
@@ -38,7 +33,6 @@ public class BitmapConstructor {
         rdelimAddr = UnsafeMemory.allocate(bytes);
     }
 
-    /** Free all off‐heap buffers. */
     public void cleanup() {
         UnsafeMemory.free(colonAddr);
         UnsafeMemory.free(commaAddr);
@@ -48,22 +42,16 @@ public class BitmapConstructor {
         UnsafeMemory.free(rdelimAddr);
     }
 
-    /**
-     * Construct the leveled bitmaps by running Stages 1–5 in parallel.
-     */
     public LeveledBitmaps construct() throws InterruptedException {
         List<DynamicPartitioner.Partition> parts =
             DynamicPartitioner.partition(json, threads);
 
         ForkJoinPool pool = new ForkJoinPool(threads);
         try {
-            // Stage 1: build raw metachar bitmaps
             pool.invoke(new Stage1Task(parts, 0, parts.size()));
 
-            // Stage 2: remove escaped quotes
             pool.invoke(new Stage2Task(parts, 0, parts.size()));
 
-            // Stage 3: build string mask (toggle quote bits to mark strings)
             long[] quoteBits = new long[words];
             for (int i = 0; i < words; i++) {
                 quoteBits[i] = UnsafeMemory.getLong(quoteAddr, (long)i * Long.BYTES);
@@ -84,16 +72,14 @@ public class BitmapConstructor {
                 stringMask[i] = mask;
             }
 
-            // Stage 4: remove metacharacters inside strings
             for (int i = 0; i < words; i++) {
-                long sm = ~stringMask[i]; // inverted mask
+                long sm = ~stringMask[i];
                 UnsafeMemory.putLong(colonAddr, (long)i * Long.BYTES, UnsafeMemory.getLong(colonAddr, (long)i * Long.BYTES) & sm);
                 UnsafeMemory.putLong(commaAddr, (long)i * Long.BYTES, UnsafeMemory.getLong(commaAddr, (long)i * Long.BYTES) & sm);
                 UnsafeMemory.putLong(ldelimAddr, (long)i * Long.BYTES, UnsafeMemory.getLong(ldelimAddr, (long)i * Long.BYTES) & sm);
                 UnsafeMemory.putLong(rdelimAddr, (long)i * Long.BYTES, UnsafeMemory.getLong(rdelimAddr, (long)i * Long.BYTES) & sm);
             }
 
-            // Stage 5: generate leveled bitmaps (flat version with single level for now)
             int maxLevels = 16;
             long[][] colonLevels = new long[maxLevels][words];
             long[][] commaLevels = new long[maxLevels][words];
@@ -134,34 +120,6 @@ public class BitmapConstructor {
             System.arraycopy(colonLevels, 0, finalColon, 0, actualLevels);
             System.arraycopy(commaLevels, 0, finalComma, 0, actualLevels);
 
-            System.out.println("Colon bit positions: ");
-            for (int l = 0; l < actualLevels; l++) {
-                System.out.print("Level " + l + ": ");
-                for (int w = 0; w < words; w++) {
-                    long word = finalColon[l][w];
-                    for (int b = 0; b < 64; b++) {
-                        if ((word & (1L << b)) != 0) {
-                            System.out.print((w * 64 + b) + " ");
-                        }
-                    }
-                }
-                System.out.println();
-            }
-
-            System.out.println("Comma bit positions: ");
-            for (int l = 0; l < actualLevels; l++) {
-                System.out.print("Level " + l + ": ");
-                for (int w = 0; w < words; w++) {
-                    long word = finalComma[l][w];
-                    for (int b = 0; b < 64; b++) {
-                        if ((word & (1L << b)) != 0) {
-                            System.out.print((w * 64 + b) + " ");
-                        }
-                    }
-                }
-                System.out.println();
-            }
-
             return new LeveledBitmaps(actualLevels, finalColon, finalComma);
         } finally {
             pool.shutdown();
@@ -169,9 +127,6 @@ public class BitmapConstructor {
         }
     }
 
-    //
-    // Stage 1: Build metacharacter bitmaps in parallel.
-    //
     private class Stage1Task extends RecursiveTask<Void> {
         private static final int THRESHOLD = 1;
         private final List<DynamicPartitioner.Partition> parts;
@@ -200,46 +155,37 @@ public class BitmapConstructor {
             int end = start + len;
             int i = start;
 
-            // process 64 bytes per iteration → one 64-bit mask per word
             for (; i + 64 <= end; i += 64) {
-                // load first and second 32-byte lanes
                 ByteVector v1 = VectorUtils.load(json, i);
                 ByteVector v2 = VectorUtils.load(json, i + VectorUtils.SPECIES.length());
 
                 long off = ((long)(i / 64)) * Long.BYTES;
 
-                // ':' bitmap
                 long lowColon  = VectorUtils.mask(VectorUtils.eq(v1, (byte)':'));
                 long highColon = VectorUtils.mask(VectorUtils.eq(v2, (byte)':'));
                 UnsafeMemory.putLong(colonAddr, off, (highColon << 32) | (lowColon & 0xFFFFFFFFL));
 
-                // ',' bitmap
                 long lowComma  = VectorUtils.mask(VectorUtils.eq(v1, (byte)','));
                 long highComma = VectorUtils.mask(VectorUtils.eq(v2, (byte)','));
                 UnsafeMemory.putLong(commaAddr, off, (highComma << 32) | (lowComma & 0xFFFFFFFFL));
 
-                // '"' bitmap
                 long lowQuote  = VectorUtils.mask(VectorUtils.eq(v1, (byte)'"'));
                 long highQuote = VectorUtils.mask(VectorUtils.eq(v2, (byte)'"'));
                 UnsafeMemory.putLong(quoteAddr, off, (highQuote << 32) | (lowQuote & 0xFFFFFFFFL));
 
-                // '\' bitmap
                 long lowSlash  = VectorUtils.mask(VectorUtils.eq(v1, (byte)'\\'));
                 long highSlash = VectorUtils.mask(VectorUtils.eq(v2, (byte)'\\'));
                 UnsafeMemory.putLong(slashAddr, off, (highSlash << 32) | (lowSlash & 0xFFFFFFFFL));
 
-                // '{' bitmap
                 long lowL    = VectorUtils.mask(VectorUtils.eq(v1, (byte)'{'));
                 long highL   = VectorUtils.mask(VectorUtils.eq(v2, (byte)'{'));
                 UnsafeMemory.putLong(ldelimAddr, off, (highL << 32) | (lowL & 0xFFFFFFFFL));
 
-                // '}' bitmap
                 long lowR    = VectorUtils.mask(VectorUtils.eq(v1, (byte)'}'));
                 long highR   = VectorUtils.mask(VectorUtils.eq(v2, (byte)'}'));
                 UnsafeMemory.putLong(rdelimAddr, off, (highR << 32) | (lowR & 0xFFFFFFFFL));
             }
 
-            // tail: handle remaining <64 bytes
             for (int j = i; j < end; j++) {
                 byte b = json[j];
                 long off = ((long)(j / 64)) * Long.BYTES;
@@ -260,10 +206,6 @@ public class BitmapConstructor {
         }
     }
 
-    //
-    // Stage 2: Remove escaped quotes — clear any '"' bit that follows
-    //           an odd-length run of '\' bits.
-    //
     private class Stage2Task extends RecursiveAction {
         private static final int THRESHOLD = 1;
         private final List<DynamicPartitioner.Partition> parts;
@@ -299,15 +241,10 @@ public class BitmapConstructor {
             }
         }
 
-        /**
-         * Return a mask with 1‑bits at positions of escaped quotes.
-         * We detect ends of slash‑runs, pick those of odd length,
-         * then shift left by 1 to clear the following '"' bit.
-         */
         private long computeEscapedQuoteMask(long slash) {
-            long ends    = slash & ~(slash << 1);     // positions where a run ends
-            long oddEnds = ends & (~slash ^ ends);    // ends of odd‑length runs
-            return oddEnds << 1;                      // the next bit is an escaped '"'
+            long ends    = slash & ~(slash << 1);
+            long oddEnds = ends & (~slash ^ ends);
+            return oddEnds << 1;
         }
     }
 

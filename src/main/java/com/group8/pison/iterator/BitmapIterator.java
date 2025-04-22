@@ -2,14 +2,11 @@ package com.group8.pison.iterator;
 
 import com.group8.pison.index.LeveledBitmaps;
 
-/**
- * Navigates through leveled bitmaps to answer JSONPath‐style queries.
- */
 public class BitmapIterator {
     private final LeveledBitmaps bitmaps;
     private final byte[] json;
     private int level = 0;
-    private long pos = 0;  // bit position
+    private long pos = 0;
 
     public BitmapIterator(LeveledBitmaps bm, byte[] json) {
         this.bitmaps = bm;
@@ -20,7 +17,7 @@ public class BitmapIterator {
         int bytePos = (int)(pos);
         if (bytePos < json.length) {
             char c = (char) json[bytePos];
-            System.out.println("isObject check at pos=" + bytePos + " char='" + c + "'");
+            
             return c == '{';
         }
         return false;
@@ -30,7 +27,7 @@ public class BitmapIterator {
         int bytePos = (int)(pos);
         if (bytePos < json.length) {
             char c = (char) json[bytePos];
-            System.out.println("isArray check at pos=" + bytePos + " char='" + c + "'");
+            
             return c == '[';
         }
         return false;
@@ -42,7 +39,7 @@ public class BitmapIterator {
             while (nextColon != -1) {
                 int bytePos = (int) nextColon;
                 String foundKey = extractKeyBeforeColon(bytePos);
-                System.out.println("Checking key at pos " + bytePos + ": " + foundKey);
+                
                 if (foundKey.equals(key)) {
                     level = l;
                     pos = nextColon;
@@ -78,46 +75,43 @@ public class BitmapIterator {
     }
 
     public boolean moveToIndex(int idx) {
-        System.out.println("→ moveToIndex(" + idx + ") called at level=" + level + ", pos=" + pos);
+        System.out.println("→ moveToIndex(" + idx + ") called at pos=" + pos);
         if (idx == 0) {
-            System.out.println("→ Index is 0, no movement needed.");
             return true;
         }
 
-        for (int l = 0; l < bitmaps.getEndingLevel(); l++) {
-            long tryPos = pos;
-            int count = 0;
-            System.out.println("→ Trying level " + l + " for commas...");
+        long arrayStart = pos;
+        long arrayEnd = json.length;
+        System.out.println("→ moveToIndex scanning between " + arrayStart + " and " + arrayEnd);
 
-            while (count < idx) {
-                tryPos = bitmaps.nextComma(l, tryPos + 1);
-                if (tryPos == -1) {
-                    System.out.println("→ No more commas found at level " + l + " after count=" + count);
-                    break;
-                }
-                System.out.println("→ Found comma #" + (count + 1) + " at pos=" + tryPos);
-                count++;
-            }
+        long tryPos = arrayStart;
+        int count = 0;
 
-            if (count == idx) {
-                System.out.println("→ Successfully reached index " + idx + " at level " + l + " with pos=" + tryPos);
-                level = l;
-                // Advance to the next significant structure
-                pos = tryPos + 1;
-                while (pos < json.length &&
-                      (json[(int) pos] == ' ' || json[(int) pos] == '\n' || json[(int) pos] == '\r' || 
-                       json[(int) pos] == '\t' || json[(int) pos] == ',')) {
-                    pos++;
-                }
-                // Skip until reaching the next structure character
-                while (pos < json.length && json[(int) pos] != '{' && json[(int) pos] != '[') {
-                    pos++;
-                }
-                return true;
+        while (count < idx) {
+            tryPos = bitmaps.nextComma(level, tryPos + 1);
+            if (tryPos == -1 || tryPos >= arrayEnd) {
+                return false;
             }
+            count++;
         }
 
-        System.out.println("→ Failed to find index " + idx + " at any level");
+        if (count == idx) {
+            pos = tryPos + 1;
+            while (pos < json.length &&
+                  (json[(int) pos] == ' ' || json[(int) pos] == '\n' || json[(int) pos] == '\r' ||
+                   json[(int) pos] == '\t' || json[(int) pos] == ',')) {
+                pos++;
+            }
+            while (pos < json.length && json[(int) pos] != '{' && json[(int) pos] != '[') {
+                pos++;
+            }
+            System.out.println("→ Final pos after skipping: " + pos + " char='" + (char) json[(int) pos] + "'");
+            int previewLen = Math.min(60, json.length - (int) pos);
+            System.out.println("→ JSON snippet at pos " + pos + ": " + new String(json, (int) pos, previewLen));
+            System.out.println("→ moveToIndex SUCCESS: idx=" + idx + ", pos=" + pos);
+            return true;
+        }
+
         return false;
     }
 
@@ -125,27 +119,58 @@ public class BitmapIterator {
         level++;
         pos = bitmaps.rangeStart(level, pos);
 
-        // Skip whitespace to find actual structure
         while (pos < json.length &&
               (json[(int) pos] == ' ' || json[(int) pos] == '\n' || json[(int) pos] == '\r' || json[(int) pos] == '\t')) {
             pos++;
         }
 
-        // If current character is a structure start, stay here
         char c = (char) json[(int) pos];
         if (c != '{' && c != '[') {
-            System.out.println("→ Warning: down() landed on unexpected character '" + c + "' at pos=" + pos);
+            
         }
 
         return this;
     }
 
     public String getValue() {
-        int start = (int)(pos);
+        int start = (int) pos;
+        if (json[start] == ':') {
+            start++;
+            while (start < json.length &&
+                  (json[start] == ' ' || json[start] == '\n' || json[start] == '\r' || json[start] == '\t')) {
+                start++;
+            }
+        }
+        char firstChar = (char) json[start];
+
+        System.out.println("→ getValue called at pos=" + start + " char='" + firstChar + "'");
+
+        if (firstChar == '{' || firstChar == '[') {
+            int depth = 0;
+            char open = firstChar;
+            char close = (firstChar == '{') ? '}' : ']';
+            int i = start;
+
+            while (i < json.length) {
+                char c = (char) json[i];
+                if (c == open) depth++;
+                else if (c == close) depth--;
+                if (depth == 0) break;
+                i++;
+            }
+
+            int end = i + 1;
+            System.out.println("→ Bracket-matched from pos=" + start + " to end=" + end);
+            return new String(json, start, end - start).trim();
+        }
+
+        // Handle scalar value (string, number, etc.)
         int end = start;
         while (end < json.length && json[end] != ',' && json[end] != '}' && json[end] != ']') {
             end++;
         }
+
+        System.out.println("→ Scalar value from pos=" + start + " to end=" + end);
         return new String(json, start, end - start).replace("\"", "").trim();
     }
 
@@ -154,9 +179,35 @@ public class BitmapIterator {
         this.pos = 0;
     }
 
-    // ... moveToIndex, isArray, etc.
+    
     public long getPos() {
         return this.pos;
+    }
+
+    public int numArrayElements() {
+        int count = 1;
+        long nextComma = bitmaps.nextComma(level, pos);
+        while (nextComma != -1) {
+            count++;
+            nextComma = bitmaps.nextComma(level, nextComma + 1);
+        }
+        return count;
+    }
+
+
+    public char getPosChar() {
+        return (char) json[(int) pos];
+    }
+
+    public void skipToValue() {
+        int p = (int) pos;
+        if (json[p] == ':') {
+            p++;
+            while (p < json.length && (json[p] == ' ' || json[p] == '\n' || json[p] == '\r' || json[p] == '\t')) {
+                p++;
+            }
+            pos = p;
+        }
     }
 
 }

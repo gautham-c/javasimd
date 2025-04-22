@@ -13,7 +13,6 @@ public class Pison {
             this.json = json;
             BitmapConstructor bc = new BitmapConstructor(json, threads);
             LeveledBitmaps bm = bc.construct();        // < run only once
-            System.out.println("in pison.java " + bm);
             this.bitmaps = bm;
             bc.cleanup();
         } catch (InterruptedException e) {
