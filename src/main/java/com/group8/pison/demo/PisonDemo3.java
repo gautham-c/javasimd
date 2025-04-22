@@ -11,7 +11,7 @@ public class PisonDemo3 {
     public static void main(String[] args) throws Exception {
         Scanner scanner = new Scanner(System.in);
         System.out.println("Hello welcome 8");
-        byte[] data = Files.readAllBytes(Paths.get("bestbuy.json"));
+        byte[] data = Files.readAllBytes(Paths.get("bestbuy_large.json"));
         Pison pison = new Pison(data, 2);
         BitmapIterator it = pison.iterator();
 
