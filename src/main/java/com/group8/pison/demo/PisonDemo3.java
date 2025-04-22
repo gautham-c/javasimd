@@ -16,6 +16,7 @@ public class PisonDemo3 {
         BitmapIterator it = pison.iterator();
 
         while (true) {
+            it = pison.iterator(); // reset to root for each new query
             System.out.print("Enter field name to access (or 'exit' to quit): ");
             String field = scanner.nextLine();
             if (field.equalsIgnoreCase("exit")) {
@@ -80,17 +81,52 @@ public class PisonDemo3 {
                         System.out.println("Subfield not found.");
                         return;
                     }
+                    it.skipToValue();
+
+                    // Enhancement: Handle if the selected subfield is an array (e.g., array inside object inside array)
+                    if (it.isArray()) {
+                        System.out.println("→ Detected nested array in subfield '" + subfield + "'.");
+                        System.out.println("→ Calling it.down() to enter nested array...");
+                        it.down();
+                        int nestedCount = it.numArrayElements();
+                        System.out.println("→ Nested array has " + nestedCount + " elements.");
+                        System.out.print("Enter index in nested array: ");
+                        int nestedIdx = Integer.parseInt(scanner.nextLine());
+                        if (!it.moveToIndex(nestedIdx)) {
+                            System.out.println("→ Invalid index in nested array.");
+                            return;
+                        }
+
+                        if (it.isObject()) {
+                            System.out.print("Enter key in nested object at index " + nestedIdx + ": ");
+                            String nestedField = scanner.nextLine();
+                            if (!it.moveToKey(nestedField)) {
+                                System.out.println("→ Nested field not found.");
+                                return;
+                            }
+                            System.out.println("→ getValue about to be called at pos=" + it.getPos() + " char='" + it.getPosChar() + "'");
+                            System.out.println("Value: " + it.getValue());
+                        } else {
+                            System.out.println("→ Value at nested index: " + it.getValue());
+                        }
+
+                        continue;
+                    }
+
+                    System.out.println("→ getValue about to be called at pos=" + it.getPos() + " char='" + it.getPosChar() + "'");
                     System.out.println("Value: " + it.getValue());
                 } else {
                     System.out.println("Element at index " + idx + " is not an object.");
+                    continue;
                 }
 
-                break;
+                continue;
             } else if (it.isObject()) {
                 System.out.println("This field is a nested object. Continue navigating or type 'exit'.");
             } else {
+                System.out.println("→ getValue about to be called at pos=" + it.getPos() + " char='" + it.getPosChar() + "'");
                 System.out.println("Value: " + it.getValue());
-                break;
+                continue;
             }
         }
 
